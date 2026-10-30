@@ -274,5 +274,6 @@ export interface PlatformFinancials {
   grossProfitRwf: number;
   operatingExpensesRwf: number;
   operatingProfitRwf: number;
+  operatingMarginPercent: number;
   closingCashRwf: number;
 }

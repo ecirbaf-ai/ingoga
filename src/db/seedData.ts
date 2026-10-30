@@ -184,7 +184,7 @@ export const demoBatches: ProductionBatch[] = [
       decision: 'approved',
       decisionNotes: 'Meets RS 459 standard for organic compost. Approved for commercial packaging and farm distribution.',
     },
-    qrCodeData: 'https://ais-dev-5s3w7tel6i4ajcwww24soj-230351139907.europe-west2.run.app/verify-batch/BS-2026-0001',
+    qrCodeData: 'https://ingoga.netlify.app/verify-batch/BS-2026-0001',
     temperatureLogs: [
       {
         stage: 'pre_treatment',

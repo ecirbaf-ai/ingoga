@@ -1,0 +1,13 @@
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[dev]
+  command = "bun run dev"
+  targetPort = 3000
+
+# Single-page app: deep links such as /verify-batch/<id> load the React app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
