@@ -1,38 +1,72 @@
-import express from 'express';
-import { createServer as createViteServer } from 'vite';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { initializeDatabase, db, resetDemoDatabase } from './src/db/database';
+import type { Config, Context } from '@netlify/functions';
+import { getDatabase } from '@netlify/database';
+import { ensureSeeded, resetDemoDatabase, toPg, type Pool } from '../../db/seed.js';
 import {
   calculateCropProfitability,
-  calculateBatchEconomics,
   calculateMarketCommission,
   calculatePlatformFinancials,
   canApproveBatchForSale,
   validateStockAvailability,
-} from './src/utils/calculations';
-import { demoUsers } from './src/db/seedData';
+} from '../../src/utils/calculations.js';
+import { demoUsers } from '../../src/db/seedData.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// IngogaBridge REST API — serves every /api/* route used by the frontend,
+// backed by Netlify Database (Postgres).
 
-// Initialize DB and Seed
-initializeDatabase();
+const pool = getDatabase().pool as unknown as Pool;
 
-const app = express();
-app.use(express.json());
+async function all(text: string, params: unknown[] = []): Promise<any[]> {
+  const { rows } = await pool.query(toPg(text), params);
+  return rows;
+}
 
-// In-memory session tracking for Demo role switching
-let currentUserId = 'usr-admin-01'; // Default: Platform Administrator
+async function one(text: string, params: unknown[] = []): Promise<any | undefined> {
+  return (await all(text, params))[0];
+}
+
+async function exec(text: string, params: unknown[] = []): Promise<number> {
+  const { rowCount } = await pool.query(toPg(text), params);
+  return rowCount ?? 0;
+}
+
+// The active demo role is remembered per browser via a cookie, since serverless
+// invocations don't share in-memory state.
+const USER_COOKIE = 'ingoga_user';
+const DEFAULT_USER_ID = 'usr-admin-01'; // Platform Administrator
+
+interface RouteContext {
+  body: any;
+  params: Record<string, string>;
+  query: Record<string, string>;
+  userId: string;
+  origin: string;
+  setUserId: (id: string) => void;
+}
+
+type Handler = (ctx: RouteContext) => Promise<Response>;
+
+const routes: { method: string; pattern: RegExp; keys: string[]; handler: Handler }[] = [];
+
+function route(method: string, path: string, handler: Handler) {
+  const keys: string[] = [];
+  const pattern = new RegExp(
+    '^' + path.replace(/:(\w+)/g, (_, key) => (keys.push(key), '([^/]+)')) + '/?$'
+  );
+  routes.push({ method, pattern, keys, handler });
+}
+
+function json(status: number, data: unknown): Response {
+  return Response.json(data, { status });
+}
 
 // ==================== AUTH & ROLES ====================
-app.get('/api/auth/current-user', (req, res) => {
-  const user = db.prepare('SELECT * FROM profiles WHERE id = ?').get(currentUserId) as any;
+route('GET', '/api/auth/current-user', async (ctx) => {
+  const user = await one('SELECT * FROM profiles WHERE id = ?', [ctx.userId]) as any;
   if (!user) {
     const defaultUser = demoUsers[0];
-    return res.json(defaultUser);
+    return json(200, defaultUser);
   }
-  res.json({
+  return json(200, {
     id: user.id,
     name: user.name,
     email: user.email,
@@ -44,47 +78,47 @@ app.get('/api/auth/current-user', (req, res) => {
   });
 });
 
-app.get('/api/auth/demo-users', (req, res) => {
-  const users = db.prepare('SELECT id, name, email, role, phone, organization, district FROM profiles').all();
-  res.json(users);
+route('GET', '/api/auth/demo-users', async (ctx) => {
+  const users = await all('SELECT id, name, email, role, phone, organization, district FROM profiles');
+  return json(200, users);
 });
 
-app.post('/api/auth/switch-role', (req, res) => {
-  const { userId } = req.body;
-  const user = db.prepare('SELECT * FROM profiles WHERE id = ?').get(userId);
+route('POST', '/api/auth/switch-role', async (ctx) => {
+  const { userId } = ctx.body;
+  const user = await one('SELECT * FROM profiles WHERE id = ?', [userId]);
   if (!user) {
-    return res.status(404).json({ error: 'User role not found' });
+    return json(404, { error: 'User role not found' });
   }
-  currentUserId = userId;
-  res.json({ success: true, user });
+  ctx.setUserId(userId);
+  return json(200, { success: true, user });
 });
 
-app.post('/api/auth/register', (req, res) => {
-  const { name, email, role, phone, organization, district } = req.body;
+route('POST', '/api/auth/register', async (ctx) => {
+  const { name, email, role, phone, organization, district } = ctx.body;
   if (!name || !email || !role || !district) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return json(400, { error: 'Missing required fields' });
   }
 
-  const existing = db.prepare('SELECT id FROM profiles WHERE email = ?').get(email);
+  const existing = await one('SELECT id FROM profiles WHERE email = ?', [email]);
   if (existing) {
-    return res.status(400).json({ error: 'Email already registered' });
+    return json(400, { error: 'Email already registered' });
   }
 
   const id = `usr-${Date.now()}`;
-  db.prepare(`
+  await exec(`
     INSERT INTO profiles (id, name, email, role, phone, organization, district, is_verified)
     VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-  `).run(id, name, email, role, phone || null, organization || null, district);
+  `, [id, name, email, role, phone || null, organization || null, district]);
 
-  currentUserId = id;
-  const newUser = db.prepare('SELECT * FROM profiles WHERE id = ?').get(id);
-  res.json({ success: true, user: newUser });
+  ctx.setUserId(id);
+  const newUser = await one('SELECT * FROM profiles WHERE id = ?', [id]);
+  return json(200, { success: true, user: newUser });
 });
 
 // ==================== BIOSOIL MODULE ====================
 // Waste collections
-app.get('/api/biosoil/waste-collections', (req, res) => {
-  const rows = db.prepare('SELECT * FROM waste_collections ORDER BY created_at DESC').all() as any[];
+route('GET', '/api/biosoil/waste-collections', async (ctx) => {
+  const rows = await all('SELECT * FROM waste_collections ORDER BY created_at DESC') as any[];
   const collections = rows.map((r) => ({
     id: r.id,
     collectionRef: r.collection_ref,
@@ -104,10 +138,10 @@ app.get('/api/biosoil/waste-collections', (req, res) => {
     operatorName: r.operator_name,
     createdAt: r.created_at,
   }));
-  res.json(collections);
+  return json(200, collections);
 });
 
-app.post('/api/biosoil/waste-collections', (req, res) => {
+route('POST', '/api/biosoil/waste-collections', async (ctx) => {
   const {
     supplierName,
     supplierPhone,
@@ -122,24 +156,24 @@ app.post('/api/biosoil/waste-collections', (req, res) => {
     rejectionReason,
     status,
     operatorName,
-  } = req.body;
+  } = ctx.body;
 
   if (!supplierName || !materialCategory || !collectionLocation) {
-    return res.status(400).json({ error: 'Missing mandatory waste collection fields' });
+    return json(400, { error: 'Missing mandatory waste collection fields' });
   }
 
   const id = `wc-${Date.now()}`;
-  const count = (db.prepare('SELECT count(*) as count FROM waste_collections').get() as any).count + 1;
+  const count = Number((await one('SELECT count(*) as count FROM waste_collections'))!.count) + 1;
   const collectionRef = `WC-2026-${String(count).padStart(4, '0')}`;
 
-  db.prepare(`
+  await exec(`
     INSERT INTO waste_collections (
       id, collection_ref, supplier_name, supplier_phone, material_category,
       estimated_weight_kg, accepted_weight_kg, collection_date, collection_location,
       collection_cost_rwf, transport_cost_rwf, contamination_observations,
       rejection_reason, status, operator_id, operator_name
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `, [
     id,
     collectionRef,
     supplierName,
@@ -154,24 +188,25 @@ app.post('/api/biosoil/waste-collections', (req, res) => {
     contaminationObservations || null,
     rejectionReason || null,
     status || 'accepted',
-    currentUserId,
+    ctx.userId,
     operatorName || 'Emmanuel Mugabo'
-  );
+  ]);
 
   // Log audit
-  db.prepare(`
+  await exec(`
     INSERT INTO audit_logs (id, actor_id, actor_name, action, target_entity, details)
     VALUES (?, ?, ?, 'CREATE_WASTE_COLLECTION', 'waste_collections', ?)
-  `).run(`audit-${Date.now()}`, currentUserId, operatorName || 'Operator', `Logged waste collection ${collectionRef}`);
+  `, [`audit-${Date.now()}`, ctx.userId, operatorName || 'Operator', `Logged waste collection ${collectionRef}`]);
 
-  res.json({ success: true, collectionRef });
+  return json(200, { success: true, collectionRef });
 });
 
 // Production Batches
-app.get('/api/biosoil/batches', (req, res) => {
-  const rows = db.prepare('SELECT * FROM production_batches ORDER BY created_at DESC').all() as any[];
+route('GET', '/api/biosoil/batches', async (ctx) => {
+  const rows = await all('SELECT * FROM production_batches ORDER BY created_at DESC') as any[];
+  const allLogs = await all('SELECT * FROM batch_processing_logs ORDER BY recorded_at ASC');
   const batches = rows.map((b) => {
-    const logs = db.prepare('SELECT * FROM batch_processing_logs WHERE batch_id = ? ORDER BY recorded_at ASC').all(b.id) as any[];
+    const logs = allLogs.filter((l) => l.batch_id === b.id);
     return {
       id: b.id,
       batchId: b.batch_id,
@@ -201,50 +236,50 @@ app.get('/api/biosoil/batches', (req, res) => {
       createdAt: b.created_at,
     };
   });
-  res.json(batches);
+  return json(200, batches);
 });
 
-app.post('/api/biosoil/batches', (req, res) => {
-  const { productName, inputMaterials, totalInputWeightKg, startDate, operatorName } = req.body;
+route('POST', '/api/biosoil/batches', async (ctx) => {
+  const { productName, inputMaterials, totalInputWeightKg, startDate, operatorName } = ctx.body;
   if (!productName || !inputMaterials || !inputMaterials.length) {
-    return res.status(400).json({ error: 'Missing input materials for batch creation' });
+    return json(400, { error: 'Missing input materials for batch creation' });
   }
 
   const id = `batch-${Date.now()}`;
-  const count = (db.prepare('SELECT count(*) as count FROM production_batches').get() as any).count + 1;
+  const count = Number((await one('SELECT count(*) as count FROM production_batches'))!.count) + 1;
   const batchId = `BS-2026-${String(count).padStart(4, '0')}`;
 
-  db.prepare(`
+  await exec(`
     INSERT INTO production_batches (
       id, batch_id, product_name, input_materials_json, total_input_weight_kg,
       start_date, current_stage, status, operator_id, operator_name,
       processing_cost_rwf, labor_cost_rwf, testing_cost_rwf, final_output_weight_kg
     ) VALUES (?, ?, ?, ?, ?, ?, 'pre_treatment', 'processing', ?, ?, 45000, 30000, 0, 0)
-  `).run(
+  `, [
     id,
     batchId,
     productName,
     JSON.stringify(inputMaterials),
     Number(totalInputWeightKg) || 0,
     startDate || new Date().toISOString().split('T')[0],
-    currentUserId,
+    ctx.userId,
     operatorName || 'Emmanuel Mugabo'
-  );
+  ]);
 
   // Add initial log
-  db.prepare(`
+  await exec(`
     INSERT INTO batch_processing_logs (
       id, batch_id, stage, recorded_at, temperature_celsius, moisture_percent,
       operator_notes, operator_name
     ) VALUES (?, ?, 'pre_treatment', ?, 28.0, 55.0, 'Batch initiated and raw materials blended.', ?)
-  `).run(`log-${Date.now()}`, id, new Date().toISOString(), operatorName || 'Emmanuel Mugabo');
+  `, [`log-${Date.now()}`, id, new Date().toISOString(), operatorName || 'Emmanuel Mugabo']);
 
-  res.json({ success: true, batchId, id });
+  return json(200, { success: true, batchId, id });
 });
 
 // Quality Gate Approval API
-app.post('/api/biosoil/batches/:batchId/quality-review', (req, res) => {
-  const { batchId } = req.params;
+route('POST', '/api/biosoil/batches/:batchId/quality-review', async (ctx) => {
+  const { batchId } = ctx.params;
   const {
     reviewerName,
     moistureSatisfactory,
@@ -256,11 +291,11 @@ app.post('/api/biosoil/batches/:batchId/quality-review', (req, res) => {
     decision,
     decisionNotes,
     finalOutputWeightKg,
-  } = req.body;
+  } = ctx.body;
 
-  const batch = db.prepare('SELECT * FROM production_batches WHERE id = ? OR batch_id = ?').get(batchId, batchId) as any;
+  const batch = await one('SELECT * FROM production_batches WHERE id = ? OR batch_id = ?', [batchId, batchId]) as any;
   if (!batch) {
-    return res.status(404).json({ error: 'Batch not found' });
+    return json(404, { error: 'Batch not found' });
   }
 
   // Validate Quality Gate rule
@@ -274,7 +309,7 @@ app.post('/api/biosoil/batches/:batchId/quality-review', (req, res) => {
     });
 
     if (!gateCheck.approved) {
-      return res.status(422).json({
+      return json(422, {
         error: 'Batch quality approval failed gate requirements',
         reasons: gateCheck.reasons,
       });
@@ -295,10 +330,10 @@ app.post('/api/biosoil/batches/:batchId/quality-review', (req, res) => {
   };
 
   const newStatus = decision === 'approved' ? 'approved' : 'rejected';
-  const appUrl = process.env.AIS_BASE_URL || 'http://localhost:3000';
+  const appUrl = ctx.origin;
   const qrUrl = `${appUrl}/verify-batch/${batch.batch_id}`;
 
-  db.prepare(`
+  await exec(`
     UPDATE production_batches
     SET quality_review_json = ?,
         status = ?,
@@ -306,31 +341,31 @@ app.post('/api/biosoil/batches/:batchId/quality-review', (req, res) => {
         qr_code_data = ?,
         completion_date = ?
     WHERE id = ?
-  `).run(
+  `, [
     JSON.stringify(qualityReviewObj),
     newStatus,
     finalOutputWeightKg ? Number(finalOutputWeightKg) : null,
     qrUrl,
     new Date().toISOString().split('T')[0],
     batch.id
-  );
+  ]);
 
-  res.json({ success: true, status: newStatus, qrUrl });
+  return json(200, { success: true, status: newStatus, qrUrl });
 });
 
 // Public Batch Traceability (Safe Provenance without internal private costs)
-app.get('/api/biosoil/traceability/:batchId', (req, res) => {
-  const { batchId } = req.params;
-  const batch = db.prepare('SELECT * FROM production_batches WHERE id = ? OR batch_id = ?').get(batchId, batchId) as any;
+route('GET', '/api/biosoil/traceability/:batchId', async (ctx) => {
+  const { batchId } = ctx.params;
+  const batch = await one('SELECT * FROM production_batches WHERE id = ? OR batch_id = ?', [batchId, batchId]) as any;
   if (!batch) {
-    return res.status(404).json({ error: 'Batch traceability certificate not found' });
+    return json(404, { error: 'Batch traceability certificate not found' });
   }
 
-  const logs = db.prepare('SELECT stage, recorded_at, temperature_celsius, moisture_percent, operator_notes FROM batch_processing_logs WHERE batch_id = ?').all(batch.id) as any[];
+  const logs = await all('SELECT stage, recorded_at, temperature_celsius, moisture_percent, operator_notes FROM batch_processing_logs WHERE batch_id = ?', [batch.id]) as any[];
   const rawInputs = JSON.parse(batch.input_materials_json || '[]');
 
   // Sanitize data: expose categories and verified standards, but hide supplier private phone numbers and internal costs
-  res.json({
+  return json(200, {
     batchId: batch.batch_id,
     productName: batch.product_name,
     startDate: batch.start_date,
@@ -346,9 +381,9 @@ app.get('/api/biosoil/traceability/:batchId', (req, res) => {
 });
 
 // Products & Stock
-app.get('/api/biosoil/products', (req, res) => {
-  const products = db.prepare("SELECT * FROM products WHERE quality_status = 'approved'").all() as any[];
-  res.json(products.map((p) => ({
+route('GET', '/api/biosoil/products', async (ctx) => {
+  const products = await all("SELECT * FROM products WHERE quality_status = 'approved'") as any[];
+  return json(200, products.map((p) => ({
     id: p.id,
     name: p.name,
     description: p.description,
@@ -367,9 +402,9 @@ app.get('/api/biosoil/products', (req, res) => {
 });
 
 // ==================== FARMGROW MODULE ====================
-app.get('/api/farmgrow/farms', (req, res) => {
-  const farms = db.prepare('SELECT * FROM farms').all() as any[];
-  res.json(farms.map((f) => ({
+route('GET', '/api/farmgrow/farms', async (ctx) => {
+  const farms = await all('SELECT * FROM farms') as any[];
+  return json(200, farms.map((f) => ({
     id: f.id,
     farmerId: f.farmer_id,
     farmerName: f.farmer_name,
@@ -382,9 +417,9 @@ app.get('/api/farmgrow/farms', (req, res) => {
   })));
 });
 
-app.get('/api/farmgrow/crop-cycles', (req, res) => {
-  const cycles = db.prepare('SELECT * FROM crop_cycles ORDER BY created_at DESC').all() as any[];
-  res.json(cycles.map((c) => ({
+route('GET', '/api/farmgrow/crop-cycles', async (ctx) => {
+  const cycles = await all('SELECT * FROM crop_cycles ORDER BY created_at DESC') as any[];
+  return json(200, cycles.map((c) => ({
     id: c.id,
     farmId: c.farm_id,
     plotId: c.plot_id,
@@ -402,7 +437,7 @@ app.get('/api/farmgrow/crop-cycles', (req, res) => {
   })));
 });
 
-app.post('/api/farmgrow/crop-cycles', (req, res) => {
+route('POST', '/api/farmgrow/crop-cycles', async (ctx) => {
   const {
     farmId,
     plotName,
@@ -414,16 +449,16 @@ app.post('/api/farmgrow/crop-cycles', (req, res) => {
     seedQuantityKg,
     expectedHarvestKg,
     notes,
-  } = req.body;
+  } = ctx.body;
 
   const id = `crop-${Date.now()}`;
-  db.prepare(`
+  await exec(`
     INSERT INTO crop_cycles (
       id, farm_id, plot_id, plot_name, crop_name, variety, planting_date,
       expected_harvest_date, field_area_ha, seed_quantity_kg, expected_harvest_kg,
       actual_harvest_kg, status, notes
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'planted', ?)
-  `).run(
+  `, [
     id,
     farmId || 'farm-001',
     `plot-${Date.now()}`,
@@ -436,14 +471,14 @@ app.post('/api/farmgrow/crop-cycles', (req, res) => {
     Number(seedQuantityKg) || 100,
     Number(expectedHarvestKg) || 1000,
     notes || null
-  );
+  ]);
 
-  res.json({ success: true, id });
+  return json(200, { success: true, id });
 });
 
-app.get('/api/farmgrow/expenses', (req, res) => {
-  const expenses = db.prepare('SELECT * FROM farm_expenses ORDER BY date DESC').all() as any[];
-  res.json(expenses.map((e) => ({
+route('GET', '/api/farmgrow/expenses', async (ctx) => {
+  const expenses = await all('SELECT * FROM farm_expenses ORDER BY date DESC') as any[];
+  return json(200, expenses.map((e) => ({
     id: e.id,
     farmId: e.farm_id,
     cropCycleId: e.crop_cycle_id,
@@ -457,19 +492,19 @@ app.get('/api/farmgrow/expenses', (req, res) => {
   })));
 });
 
-app.post('/api/farmgrow/expenses', (req, res) => {
-  const { farmId, cropCycleId, cropName, date, category, description, quantity, unit, amountRwf } = req.body;
+route('POST', '/api/farmgrow/expenses', async (ctx) => {
+  const { farmId, cropCycleId, cropName, date, category, description, quantity, unit, amountRwf } = ctx.body;
   if (!amountRwf || !category) {
-    return res.status(400).json({ error: 'Category and amount are required' });
+    return json(400, { error: 'Category and amount are required' });
   }
 
   const id = `exp-${Date.now()}`;
-  db.prepare(`
+  await exec(`
     INSERT INTO farm_expenses (
       id, farm_id, crop_cycle_id, crop_name, date, category, description,
       quantity, unit, amount_rwf
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `, [
     id,
     farmId || 'farm-001',
     cropCycleId || 'crop-001',
@@ -480,14 +515,14 @@ app.post('/api/farmgrow/expenses', (req, res) => {
     Number(quantity) || 1,
     unit || 'unit',
     Number(amountRwf) || 0
-  );
+  ]);
 
-  res.json({ success: true, id });
+  return json(200, { success: true, id });
 });
 
-app.get('/api/farmgrow/harvests', (req, res) => {
-  const harvests = db.prepare('SELECT * FROM harvest_records ORDER BY harvest_date DESC').all() as any[];
-  res.json(harvests.map((h) => ({
+route('GET', '/api/farmgrow/harvests', async (ctx) => {
+  const harvests = await all('SELECT * FROM harvest_records ORDER BY harvest_date DESC') as any[];
+  return json(200, harvests.map((h) => ({
     id: h.id,
     farmId: h.farm_id,
     cropCycleId: h.crop_cycle_id,
@@ -502,7 +537,7 @@ app.get('/api/farmgrow/harvests', (req, res) => {
   })));
 });
 
-app.post('/api/farmgrow/harvests', (req, res) => {
+route('POST', '/api/farmgrow/harvests', async (ctx) => {
   const {
     farmId,
     cropCycleId,
@@ -514,16 +549,16 @@ app.post('/api/farmgrow/harvests', (req, res) => {
     quantityLossKg,
     averageSellingPriceRwf,
     buyerReference,
-  } = req.body;
+  } = ctx.body;
 
   const id = `harv-${Date.now()}`;
-  db.prepare(`
+  await exec(`
     INSERT INTO harvest_records (
       id, farm_id, crop_cycle_id, crop_name, harvest_date, total_harvest_kg,
       quantity_sold_kg, quantity_retained_kg, quantity_loss_kg, average_selling_price_rwf,
       buyer_reference
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `, [
     id,
     farmId || 'farm-001',
     cropCycleId || 'crop-001',
@@ -535,53 +570,53 @@ app.post('/api/farmgrow/harvests', (req, res) => {
     Number(quantityLossKg) || 0,
     Number(averageSellingPriceRwf) || 0,
     buyerReference || null
-  );
+  ]);
 
-  res.json({ success: true, id });
+  return json(200, { success: true, id });
 });
 
-app.get('/api/farmgrow/profitability', (req, res) => {
-  const expenses = db.prepare('SELECT amount_rwf as amountRwf FROM farm_expenses').all() as any[];
-  const harvests = db.prepare(`
-    SELECT quantity_sold_kg as quantitySoldKg,
-           average_selling_price_rwf as averageSellingPriceRwf,
-           total_harvest_kg as totalHarvestKg
+route('GET', '/api/farmgrow/profitability', async (ctx) => {
+  const expenses = await all('SELECT amount_rwf as "amountRwf" FROM farm_expenses') as any[];
+  const harvests = await all(`
+    SELECT quantity_sold_kg as "quantitySoldKg",
+           average_selling_price_rwf as "averageSellingPriceRwf",
+           total_harvest_kg as "totalHarvestKg"
     FROM harvest_records
-  `).all() as any[];
+  `) as any[];
 
   const profitability = calculateCropProfitability({
     expenses,
     harvests,
   });
 
-  res.json(profitability);
+  return json(200, profitability);
 });
 
 // ==================== INGOGAMARKET MODULE ====================
-app.get('/api/market/listings', (req, res) => {
-  const { crop, district, grade, sellerType } = req.query;
-  let query = "SELECT * FROM marketplace_listings WHERE status != 'archived'";
+route('GET', '/api/market/listings', async (ctx) => {
+  const { crop, district, grade, sellerType } = ctx.query;
+  let sqlText = "SELECT * FROM marketplace_listings WHERE status != 'archived'";
   const params: any[] = [];
 
   if (crop) {
-    query += ' AND crop_name LIKE ?';
+    sqlText += ' AND crop_name ILIKE ?';
     params.push(`%${crop}%`);
   }
   if (district) {
-    query += ' AND district = ?';
+    sqlText += ' AND district = ?';
     params.push(district);
   }
   if (grade) {
-    query += ' AND grade = ?';
+    sqlText += ' AND grade = ?';
     params.push(grade);
   }
   if (sellerType) {
-    query += ' AND seller_type = ?';
+    sqlText += ' AND seller_type = ?';
     params.push(sellerType);
   }
 
-  query += ' ORDER BY created_at DESC';
-  const rows = db.prepare(query).all(...params) as any[];
+  sqlText += ' ORDER BY created_at DESC';
+  const rows = await all(sqlText, params) as any[];
 
   const listings = rows.map((l) => ({
     id: l.id,
@@ -606,10 +641,10 @@ app.get('/api/market/listings', (req, res) => {
     createdAt: l.created_at,
   }));
 
-  res.json(listings);
+  return json(200, listings);
 });
 
-app.post('/api/market/listings', (req, res) => {
+route('POST', '/api/market/listings', async (ctx) => {
   const {
     cropName,
     variety,
@@ -624,25 +659,25 @@ app.post('/api/market/listings', (req, res) => {
     status,
     imageUrl,
     coopMemberAllocations,
-  } = req.body;
+  } = ctx.body;
 
   if (!cropName || !quantityAvailable || !pricePerUnitRwf) {
-    return res.status(400).json({ error: 'Missing mandatory listing details' });
+    return json(400, { error: 'Missing mandatory listing details' });
   }
 
-  const user = db.prepare('SELECT * FROM profiles WHERE id = ?').get(currentUserId) as any;
-  const count = (db.prepare('SELECT count(*) as count FROM marketplace_listings').get() as any).count + 1;
+  const user = await one('SELECT * FROM profiles WHERE id = ?', [ctx.userId]) as any;
+  const count = Number((await one('SELECT count(*) as count FROM marketplace_listings'))!.count) + 1;
   const listingCode = `IM-2026-${String(count).padStart(4, '0')}`;
   const id = `list-${Date.now()}`;
 
-  db.prepare(`
+  await exec(`
     INSERT INTO marketplace_listings (
       id, listing_code, seller_id, seller_name, seller_type, organization_name,
       crop_name, variety, quantity_available, unit_of_measure, price_per_unit_rwf,
       district, sector, harvest_date, grade, is_organic_certified, status,
       image_url, coop_member_allocations_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `, [
     id,
     listingCode,
     user?.id || 'usr-farmer-01',
@@ -662,14 +697,14 @@ app.post('/api/market/listings', (req, res) => {
     status || 'available_now',
     imageUrl || 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=600&q=80',
     coopMemberAllocations ? JSON.stringify(coopMemberAllocations) : null
-  );
+  ]);
 
-  res.json({ success: true, listingCode, id });
+  return json(200, { success: true, listingCode, id });
 });
 
 // Orders & Order Workflow
-app.get('/api/market/orders', (req, res) => {
-  const rows = db.prepare('SELECT * FROM orders ORDER BY created_at DESC').all() as any[];
+route('GET', '/api/market/orders', async (ctx) => {
+  const rows = await all('SELECT * FROM orders ORDER BY created_at DESC') as any[];
   const orders = rows.map((o) => ({
     id: o.id,
     orderNumber: o.order_number,
@@ -692,27 +727,27 @@ app.get('/api/market/orders', (req, res) => {
     statusHistory: JSON.parse(o.status_history_json || '[]'),
     createdAt: o.created_at,
   }));
-  res.json(orders);
+  return json(200, orders);
 });
 
-app.post('/api/market/orders', (req, res) => {
-  const { listingId, quantity, deliveryArrangements, paymentMethod } = req.body;
-  const listing = db.prepare('SELECT * FROM marketplace_listings WHERE id = ?').get(listingId) as any;
+route('POST', '/api/market/orders', async (ctx) => {
+  const { listingId, quantity, deliveryArrangements, paymentMethod } = ctx.body;
+  const listing = await one('SELECT * FROM marketplace_listings WHERE id = ?', [listingId]) as any;
   if (!listing) {
-    return res.status(404).json({ error: 'Produce listing not found' });
+    return json(404, { error: 'Produce listing not found' });
   }
 
   // Stock overselling validation
   const orderQty = Number(quantity);
   const stockCheck = validateStockAvailability(listing.quantity_available, orderQty);
   if (!stockCheck.canFulfill) {
-    return res.status(400).json({
+    return json(400, {
       error: `Requested quantity (${orderQty} ${listing.unit_of_measure}) exceeds available stock (${listing.quantity_available})`,
     });
   }
 
-  const user = db.prepare('SELECT * FROM profiles WHERE id = ?').get(currentUserId) as any;
-  const count = (db.prepare('SELECT count(*) as count FROM orders').get() as any).count + 1;
+  const user = await one('SELECT * FROM profiles WHERE id = ?', [ctx.userId]) as any;
+  const count = Number((await one('SELECT count(*) as count FROM orders'))!.count) + 1;
   const orderNumber = `ORD-2026-${String(count).padStart(4, '0')}`;
   const id = `ord-${Date.now()}`;
 
@@ -728,21 +763,24 @@ app.post('/api/market/orders', (req, res) => {
     },
   ];
 
-  // Atomic deduction of stock
-  db.prepare(`
+  // Atomic deduction of stock (guards against concurrent overselling)
+  const deducted = await exec(`
     UPDATE marketplace_listings
     SET quantity_available = quantity_available - ?
-    WHERE id = ?
-  `).run(orderQty, listing.id);
+    WHERE id = ? AND quantity_available >= ?
+  `, [orderQty, listing.id, orderQty]);
+  if (deducted === 0) {
+    return json(400, { error: 'Requested quantity exceeds available stock' });
+  }
 
-  db.prepare(`
+  await exec(`
     INSERT INTO orders (
       id, order_number, listing_id, crop_name, buyer_id, buyer_name, buyer_phone,
       seller_id, seller_name, quantity, unit_price_rwf, total_produce_value_rwf,
       commission_rate_percent, commission_amount_rwf, delivery_arrangements,
       order_status, payment_status, payment_method, status_history_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted', 'pending', ?, ?)
-  `).run(
+  `, [
     id,
     orderNumber,
     listing.id,
@@ -760,18 +798,18 @@ app.post('/api/market/orders', (req, res) => {
     deliveryArrangements || 'Hub Pickup Musanze',
     paymentMethod || 'momo_rwanda',
     JSON.stringify(initialHistory)
-  );
+  ]);
 
-  res.json({ success: true, orderNumber, id });
+  return json(200, { success: true, orderNumber, id });
 });
 
-app.patch('/api/market/orders/:orderId/status', (req, res) => {
-  const { orderId } = req.params;
-  const { newStatus, notes } = req.body;
+route('PATCH', '/api/market/orders/:orderId/status', async (ctx) => {
+  const { orderId } = ctx.params;
+  const { newStatus, notes } = ctx.body;
 
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any;
+  const order = await one('SELECT * FROM orders WHERE id = ?', [orderId]) as any;
   if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
+    return json(404, { error: 'Order not found' });
   }
 
   const history = JSON.parse(order.status_history_json || '[]');
@@ -786,33 +824,33 @@ app.patch('/api/market/orders/:orderId/status', (req, res) => {
     paymentStatus = 'confirmed';
   }
 
-  db.prepare(`
+  await exec(`
     UPDATE orders
     SET order_status = ?,
         payment_status = ?,
         status_history_json = ?
     WHERE id = ?
-  `).run(newStatus, paymentStatus, JSON.stringify(history), order.id);
+  `, [newStatus, paymentStatus, JSON.stringify(history), order.id]);
 
-  res.json({ success: true, newStatus });
+  return json(200, { success: true, newStatus });
 });
 
-app.post('/api/market/orders/:orderId/simulate-payment', (req, res) => {
-  const { orderId } = req.params;
-  const { paymentMethod } = req.body;
+route('POST', '/api/market/orders/:orderId/simulate-payment', async (ctx) => {
+  const { orderId } = ctx.params;
+  const { paymentMethod } = ctx.body;
 
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any;
+  const order = await one('SELECT * FROM orders WHERE id = ?', [orderId]) as any;
   if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
+    return json(404, { error: 'Order not found' });
   }
 
   const paymentRef = `PAY-RW-${Date.now().toString().slice(-6)}`;
-  db.prepare(`
+  await exec(`
     INSERT INTO payments (
       id, payment_reference, order_id, payer_id, payer_name, payee_id, payee_name,
       amount_rwf, payment_method, payment_status, reconciliation_status
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', 'reconciled')
-  `).run(
+  `, [
     `pay-${Date.now()}`,
     paymentRef,
     order.id,
@@ -822,46 +860,46 @@ app.post('/api/market/orders/:orderId/simulate-payment', (req, res) => {
     order.seller_name,
     order.total_produce_value_rwf,
     paymentMethod || 'momo_rwanda'
-  );
+  ]);
 
-  db.prepare(`
+  await exec(`
     UPDATE orders
     SET payment_status = 'confirmed',
         order_status = 'confirmed'
     WHERE id = ?
-  `).run(order.id);
+  `, [order.id]);
 
-  res.json({ success: true, paymentRef });
+  return json(200, { success: true, paymentRef });
 });
 
 // ==================== FINANCIAL REPORTING & ANALYTICS ====================
-app.get('/api/finance/overview', (req, res) => {
+route('GET', '/api/finance/overview', async (ctx) => {
   // 1. Gross Marketplace Produce Volume (sum of completed/confirmed orders)
-  const gmvRow = db.prepare(`
+  const gmvRow = await one(`
     SELECT COALESCE(SUM(total_produce_value_rwf), 0) as gmv,
            COALESCE(SUM(commission_amount_rwf), 0) as commissions
     FROM orders
     WHERE order_status IN ('confirmed', 'fulfillment', 'delivered', 'completed')
-  `).get() as any;
+  `) as any;
 
   // 2. Recognized BioSoil Product Sales
-  const biosoilSalesRow = db.prepare(`
+  const biosoilSalesRow = await one(`
     SELECT COALESCE(SUM(unit_price_rwf * 20), 0) as sales
     FROM products
-  `).get() as any;
+  `) as any;
 
   // 3. Recognized Subscriptions
-  const subsRow = db.prepare(`
+  const subsRow = await one(`
     SELECT COALESCE(SUM(monthly_fee_rwf), 0) as subs
     FROM subscriptions
     WHERE status = 'active'
-  `).get() as any;
+  `) as any;
 
   // 4. Operating Expenses
-  const opexRow = db.prepare(`
+  const opexRow = await one(`
     SELECT COALESCE(SUM(amount_rwf), 0) as opex
     FROM business_expenses
-  `).get() as any;
+  `) as any;
 
   const financials = calculatePlatformFinancials({
     grossMarketplaceProduceVolumeRwf: Number(gmvRow.gmv) || 4108000,
@@ -873,13 +911,13 @@ app.get('/api/finance/overview', (req, res) => {
     operatingExpensesRwf: Number(opexRow.opex) || 475000,
   });
 
-  res.json(financials);
+  return json(200, financials);
 });
 
 // Subscriptions
-app.get('/api/subscriptions/plans', (req, res) => {
-  const plans = db.prepare('SELECT * FROM subscription_plans').all() as any[];
-  res.json(plans.map((p) => ({
+route('GET', '/api/subscriptions/plans', async (ctx) => {
+  const plans = await all('SELECT * FROM subscription_plans') as any[];
+  return json(200, plans.map((p) => ({
     id: p.id,
     name: p.name,
     tier: p.tier,
@@ -888,15 +926,15 @@ app.get('/api/subscriptions/plans', (req, res) => {
   })));
 });
 
-app.get('/api/subscriptions/current', (req, res) => {
-  const subs = db.prepare('SELECT * FROM subscriptions').all() as any[];
-  res.json(subs);
+route('GET', '/api/subscriptions/current', async (ctx) => {
+  const subs = await all('SELECT * FROM subscriptions') as any[];
+  return json(200, subs);
 });
 
 // Notifications
-app.get('/api/notifications', (req, res) => {
-  const notifs = db.prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 20').all() as any[];
-  res.json(notifs.map((n) => ({
+route('GET', '/api/notifications', async (ctx) => {
+  const notifs = await all('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 20') as any[];
+  return json(200, notifs.map((n) => ({
     id: n.id,
     userId: n.user_id,
     title: n.title,
@@ -909,32 +947,63 @@ app.get('/api/notifications', (req, res) => {
 });
 
 // Demo Reset Endpoint
-app.post('/api/demo/reset', (req, res) => {
-  resetDemoDatabase();
-  res.json({ success: true, message: 'IngogaBridge demo environment reset to default pristine state' });
+route('POST', '/api/demo/reset', async (ctx) => {
+  await resetDemoDatabase(pool);
+  return json(200, { success: true, message: 'IngogaBridge demo environment reset to default pristine state' });
 });
 
-// Vite Middleware for Frontend Serving
-async function startServer() {
-  const isDev = process.env.NODE_ENV !== 'production';
-  const PORT = 3000;
 
-  if (isDev) {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
-    });
+export default async (req: Request, context: Context) => {
+  const url = new URL(req.url);
+  const match = routes
+    .filter((r) => r.method === req.method)
+    .map((r) => ({ r, m: url.pathname.match(r.pattern) }))
+    .find(({ m }) => m);
+
+  if (!match) {
+    return json(404, { error: 'Not found' });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`IngogaBridge full-stack agritech engine running on http://0.0.0.0:${PORT}`);
-  });
-}
+  let body: any = {};
+  if (req.method !== 'GET') {
+    body = await req.json().catch(() => ({}));
+  }
 
-startServer();
+  let newUserId: string | null = null;
+  const params = Object.fromEntries(
+    match.r.keys.map((key, i) => [key, decodeURIComponent(match.m![i + 1])])
+  );
+
+  try {
+    await ensureSeeded(pool);
+    const res = await match.r.handler({
+      body,
+      params,
+      query: Object.fromEntries(url.searchParams),
+      userId: context.cookies.get(USER_COOKIE) || DEFAULT_USER_ID,
+      origin: url.origin,
+      setUserId: (id) => {
+        newUserId = id;
+      },
+    });
+    if (newUserId) {
+      context.cookies.set({
+        name: USER_COOKIE,
+        value: newUserId,
+        path: '/',
+        httpOnly: true,
+        secure: url.protocol === 'https:',
+        sameSite: 'Lax',
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+    return res;
+  } catch (err) {
+    console.error(`API error on ${req.method} ${url.pathname}:`, err);
+    return json(500, { error: 'Internal server error' });
+  }
+};
+
+export const config: Config = {
+  path: '/api/*',
+};

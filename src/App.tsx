@@ -28,7 +28,12 @@ import {
 import { Language } from './utils/translations';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('home');
+  // QR codes link to /verify-batch/<batchId>; open the public verification view for them.
+  const [qrBatchId] = useState<string | undefined>(() => {
+    const match = window.location.pathname.match(/^\/verify-batch\/([^/]+)/);
+    return match ? decodeURIComponent(match[1]) : undefined;
+  });
+  const [activeTab, setActiveTab] = useState<string>(qrBatchId ? 'verify_qr' : 'home');
   const [language, setLanguage] = useState<Language>('en');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [demoUsers, setDemoUsers] = useState<UserProfile[]>([]);
@@ -219,6 +224,7 @@ export default function App() {
   if (activeTab === 'verify_qr') {
     return (
       <PublicBatchVerify
+        initialBatchId={qrBatchId}
         onBack={() => setActiveTab('biosoil')}
         onOrderProduct={() => setActiveTab('market')}
       />
