@@ -1,0 +1,931 @@
+# MASTER BUILD PROMPT: INGOGABRIDGE
+## Full-Stack Agritech, Circular Economy, Farm Management and Marketplace Platform
+
+### 1. YOUR ROLE AND MISSION
+
+Act as a senior full-stack software engineer, product designer, database architect, cybersecurity engineer, agritech specialist, and startup product strategist.
+
+Build a complete, functional, responsive, mobile-first web application called **INGOGABRIDGE** for Rwanda.
+
+IngogaBridge is an integrated agritech and circular-economy enterprise that connects:
+
+1. **BioSoil** — collection and processing of suitable organic and agricultural waste into quality-controlled compost and soil-improvement products.
+2. **FarmGrow** — digital farm management, crop planning, input tracking, expense management, harvest forecasting, and farm profitability analysis.
+3. **IngogaMarket** — a marketplace connecting farmers and cooperatives with produce buyers, agricultural suppliers, and relevant service providers.
+
+The business principle is:
+
+**FROM WASTE TO WEALTH. FROM FARMS TO MARKETS.**
+
+The platform should help turn waste into useful products, support farmers in making informed production decisions, and connect agricultural production with paying markets.
+
+Build a real application with working frontend, backend, database, authentication, authorization, validation, calculations, dashboards, and connected workflows.
+
+Do NOT deliver only a landing page, a Figma design, static screens, a nonfunctional dashboard, or buttons that do nothing.
+
+If the platform cannot be completed in one generation, implement it in coherent phases within the same project. Prioritize a working end-to-end MVP before adding advanced features.
+
+### 2. BRAND IDENTITY AND DESIGN
+
+Brand name: IngogaBridge.
+
+Product divisions:
+- BioSoil
+- FarmGrow
+- IngogaMarket
+
+Brand personality:
+- Trustworthy
+- Innovative
+- Sustainable
+- Practical
+- Professional
+- Farmer-friendly
+- Transparent
+- Designed for Rwanda and adaptable to other markets
+
+Suggested slogan:
+"From Waste to Wealth. From Farms to Markets."
+
+Visual direction:
+- Use a professional agricultural green as the primary color.
+- Combine deep forest green, natural cream, white, muted earth tones, and restrained gold accents.
+- Use red only for errors, destructive actions, and important warnings.
+- Use consistent spacing, typography, icons, cards, tables, charts, and accessible contrast.
+- Use real, relevant agricultural imagery where appropriate, with optimized image sizes.
+- Avoid excessive gradients, oversized empty hero sections, unnecessary animations, and cluttered dashboards.
+- Create a polished visual identity suitable for business competitions, cooperatives, institutional partners, investors, and paying customers.
+
+Create a clean logo combining a bridge, a leaf, and agricultural growth. If a logo image cannot be generated, create a simple original SVG logo.
+
+Make the website look like a credible, modern African agritech company rather than a generic AI-generated dashboard.
+
+### 3. TECHNICAL ARCHITECTURE
+
+Use the app builder's supported full-stack technology.
+
+Preferred architecture when supported:
+- Frontend: React and TypeScript.
+- Styling: Tailwind CSS or an equivalent maintainable design system.
+- Backend: secure server-side API or server functions.
+- Database: PostgreSQL, preferably Supabase when supported.
+- Authentication: secure email/password authentication with password reset.
+- File storage: private storage for sensitive documents and controlled public storage for approved product images.
+- Charts: a suitable charting library.
+- PWA: installable web application with an offline-friendly interface.
+- QR codes: generate unique QR codes for BioSoil batches and products.
+
+If the builder has its own managed backend, use that backend rather than creating an incompatible second backend.
+
+Create a clean, modular architecture with reusable components, clear database relationships, typed data models, centralized validation, and consistent error handling.
+
+Do not put database service-role credentials, secret API keys, or payment-provider secrets in frontend code.
+
+Create database migrations or an equivalent reproducible database schema. Include a README with installation, configuration, database setup, testing, and deployment instructions.
+
+### 4. USER ROLES AND PERMISSIONS
+
+Implement role-based access control.
+
+A. Platform Administrator
+- Manage users and organizations.
+- Approve, suspend, or reject accounts where appropriate.
+- Assign roles according to authorization rules.
+- Review products, listings, orders, and reported issues.
+- Manage service categories and configurable fees.
+- View platform-wide business analytics.
+- View audit logs.
+- Configure demo mode and system settings.
+- Export authorized reports.
+
+B. BioSoil Operator
+- Register incoming organic waste.
+- Create processing batches.
+- Record materials, weights, dates, and processing observations.
+- Record quality-control results.
+- Manage packaged products and stock.
+- Record sales and production costs.
+- Generate batch QR codes.
+
+C. Farmer
+- Create and manage farm profiles.
+- Record fields, crops, planting dates, and farm inputs.
+- Record production expenses and harvests.
+- Estimate production costs and potential profit.
+- Browse BioSoil products.
+- Create produce listings.
+- Receive and manage orders.
+- View sales and payment statuses.
+
+D. Waste Supplier or Collector
+- Register suitable waste materials.
+- Submit collection requests.
+- Record collection locations, weights, and dates.
+- Track collection status.
+- View accepted or rejected deliveries and relevant payment records.
+
+E. Cooperative Manager
+- Manage cooperative information and authorized members.
+- Aggregate members' harvests.
+- Coordinate bulk orders.
+- Review farm records where members have authorized access.
+- View cooperative-level production, sales, and financial reports.
+- Manage cooperative subscriptions.
+
+F. Produce Buyer
+- Browse approved produce listings.
+- Filter products by crop, location, quantity, price, and availability.
+- Submit orders and negotiate where enabled.
+- View delivery status.
+- Confirm receipt according to the order workflow.
+- Review transaction history and download receipts.
+
+G. Agricultural Supplier or Service Provider
+- Create supplier profiles.
+- List approved agricultural inputs and services.
+- Manage inventory and prices.
+- Receive and process customer orders.
+
+A user may hold more than one role only when explicitly authorized.
+
+Enforce permissions in backend policies and database access rules, not just by hiding frontend buttons.
+
+### 5. PUBLIC WEBSITE AND LANDING PAGE
+
+Build a polished public-facing website with:
+
+- Home
+- About IngogaBridge
+- BioSoil
+- FarmGrow
+- IngogaMarket
+- How It Works
+- Sustainability and Impact
+- For Farmers
+- For Cooperatives
+- For Buyers
+- Become a Partner
+- Contact
+- Sign In
+- Create Account
+- Privacy Policy
+- Terms of Service
+
+Homepage hero:
+Headline: "From Waste to Wealth. From Farms to Markets."
+Subheadline: "A connected agricultural ecosystem transforming suitable organic waste into valuable soil products, helping farmers manage production, and connecting harvests to buyers."
+
+Primary calls to action:
+- Join as a Farmer
+- Find Agricultural Products
+- Buy Farm Produce
+- Become a Cooperative Partner
+
+Include a visual process diagram:
+
+ORGANIC WASTE → BIOSOIL PROCESSING → FARM PRODUCTION → INGOGAMARKET → BUYERS
+
+Show that crop residues can return to the waste-recovery process when suitable and safely handled.
+
+Include sections explaining the problem, the solution, how each module works, revenue model, customer benefits, sustainability goals, and partnership opportunities.
+
+Add genuine contact and support information only when provided by the business owner. Do not invent office addresses, telephone numbers, partnerships, certifications, testimonials, or customer counts.
+
+### 6. AUTHENTICATION AND ONBOARDING
+
+Build:
+- Registration.
+- Login and logout.
+- Email verification where supported.
+- Password reset.
+- Session management.
+- Profile editing.
+- Organization registration.
+- Role-based onboarding.
+- Account approval where required.
+- Clear account status and access-denied screens.
+
+During registration, collect only necessary information.
+
+For farmers, collect name, contact details, preferred language, general location, and optional farm information.
+
+For cooperatives and buyers, collect organization details and authorized representative information.
+
+Never expose personal contact information or precise farm coordinates publicly without explicit permission.
+
+### 7. BIOSOIL MODULE
+
+Create a complete waste collection, compost production, quality-control, product inventory, and sales module.
+
+A. Waste collection management
+
+Record:
+- Collection reference.
+- Supplier or source.
+- Material category.
+- Estimated and accepted weight in kilograms.
+- Collection date.
+- Collection location.
+- Collection and transport costs.
+- Contamination observations.
+- Acceptance or rejection status.
+- Responsible operator.
+- Supporting photos where useful.
+
+Allow operators to reject unsuitable or contaminated material and record the reason.
+
+B. Processing batches
+
+Every batch must have a unique identifier, such as BS-2026-0001.
+
+Record:
+- Batch ID.
+- Input material types and weights.
+- Start date.
+- Processing stages.
+- Temperature observations.
+- Moisture observations.
+- Turning or handling records where applicable.
+- Responsible operator.
+- Processing costs.
+- Quality-control status.
+- Final output weight.
+- Packaging information.
+- Completion date.
+- Linked waste collection records.
+
+Batch statuses:
+- Created
+- Materials Received
+- Processing
+- Quality Review
+- Approved
+- Rejected
+- Archived
+
+A batch must not be marked approved for sale until the configured quality requirements have been satisfied and authorized personnel approve it.
+
+Do not invent laboratory results, safety certificates, nutrient values, or maturity results. Clearly distinguish operator observations from independently verified test results.
+
+C. Product management
+
+Record:
+- Product name.
+- Description.
+- Category.
+- Source batch.
+- Package size.
+- Unit of measure.
+- Selling price.
+- Cost of production.
+- Available quantity.
+- Product images.
+- Storage instructions.
+- Application instructions where appropriately established.
+- Quality status.
+- Approval status.
+
+Automatically update inventory when a valid sale is completed. Prevent overselling and negative stock.
+
+D. QR traceability
+
+Generate a unique QR code for each approved batch or product package.
+
+The public QR page may display:
+- Batch identifier.
+- Product name.
+- Processing dates.
+- General material source category.
+- Verified test information where available.
+- Product instructions.
+- Packaging information.
+- Business contact or reorder link.
+
+Do not reveal private supplier data, sensitive locations, or internal costs through the public QR page.
+
+E. BioSoil financial tracking
+
+Calculate:
+- Material collection cost.
+- Transportation cost.
+- Processing cost.
+- Packaging cost.
+- Testing cost.
+- Total batch cost.
+- Cost per kilogram or package.
+- Sales revenue.
+- Gross profit.
+- Inventory value.
+
+Use actual recorded costs where available and label estimated costs appropriately.
+
+### 8. FARMGROW MODULE
+
+Build a farm management system that is useful to smallholder farmers and cooperatives.
+
+A. Farm profiles
+
+Record:
+- Farm name or reference.
+- Farmer.
+- General location.
+- Field or plot.
+- Area and unit.
+- Soil information when known.
+- Irrigation availability.
+- Optional farm photos.
+
+B. Crop planning
+
+Record:
+- Crop type.
+- Variety where known.
+- Planting date.
+- Expected harvest date.
+- Field area.
+- Seed quantity.
+- Fertilizer and soil product inputs.
+- Irrigation and other relevant activities.
+- Expected harvest quantity.
+- Actual harvested quantity.
+
+C. Input and expense tracking
+
+Track:
+- Seeds.
+- Fertilizers and soil products.
+- Labor.
+- Irrigation.
+- Transport.
+- Equipment and other relevant expenses.
+
+Record date, category, quantity, unit, amount, currency, and optional supporting notes.
+
+D. Harvest records
+
+Record:
+- Crop.
+- Field.
+- Harvest date.
+- Actual harvested quantity.
+- Quantity sold.
+- Quantity retained.
+- Quantity lost or rejected.
+- Average selling price.
+- Buyer or order reference where relevant.
+
+E. Farmer profitability calculator
+
+Calculate:
+
+Total Production Cost = Sum of Recorded Crop Expenses.
+
+Gross Sales Revenue = Sum of Sales Quantity × Actual Selling Price.
+
+Estimated Crop Profit = Gross Sales Revenue − Recorded Production Costs.
+
+Profit Margin = Estimated Crop Profit ÷ Gross Sales Revenue × 100, where revenue is greater than zero.
+
+Cost per Unit = Recorded Production Costs ÷ Harvest Quantity, where harvest quantity is greater than zero.
+
+Clearly state which costs are included and whether labor, transport, financing, and other expenses are complete.
+
+Separate forecast figures from actual recorded results.
+
+F. Harvest forecasting
+
+Create a basic forecast using recorded planting dates, crop information, and manually entered estimates.
+
+Display forecast confidence and limitations where feasible.
+
+Do not claim advanced AI accuracy without sufficient real-world data and validation. Never present predictions as guaranteed harvests.
+
+G. BioSoil integration
+
+Allow farmers to browse approved BioSoil products, request quotations, place orders, and record product use on their farms.
+
+Do not automatically recommend a particular compost or fertilizer application rate without reliable product information and appropriate agronomic guidance.
+
+### 9. INGOGAMARKET MODULE
+
+Build a functioning agricultural marketplace.
+
+A. Produce listings
+
+Each listing should contain:
+- Listing ID.
+- Farmer or cooperative.
+- Crop name.
+- Variety or grade when known.
+- Quantity available.
+- Unit of measure.
+- Price per unit.
+- General location.
+- Availability or expected harvest date.
+- Product photos.
+- Quality or grading details where verified.
+- Listing status.
+- Created and updated timestamps.
+
+Clearly label listings:
+- Available Now
+- Expected Harvest
+- Reserved
+- Sold
+- Expired
+
+Do not represent estimated future harvest as available stock.
+
+B. Search and filtering
+
+Support filtering by:
+- Crop.
+- Location.
+- Price range.
+- Quantity.
+- Availability date.
+- Seller type.
+- Verified listing status.
+
+C. Orders
+
+Implement a real order workflow:
+
+Draft → Submitted → Accepted or Negotiation → Confirmed → Fulfillment → Delivered → Completed.
+
+Allow cancellation, rejection, and dispute statuses where appropriate.
+
+Use database transactions or equivalent safe operations to prevent duplicate orders and stock overselling.
+
+Store:
+- Buyer.
+- Seller.
+- Items and quantities.
+- Agreed prices.
+- Total order value.
+- Delivery arrangements.
+- Agreed commission.
+- Payment status.
+- Delivery status.
+- Timestamps.
+- Receipt or order reference.
+
+Record changes in an order history.
+
+D. Buyer-seller communication
+
+Provide a simple, access-controlled conversation or inquiry system tied to the listing or order.
+
+Protect phone numbers and other contact details according to user privacy preferences.
+
+E. Produce aggregation
+
+Allow authorized cooperatives to combine available member quantities into a bulk listing while preserving the underlying quantities and seller allocations.
+
+Do not count the same produce twice.
+
+### 10. COMMISSION AND PAYMENT MANAGEMENT
+
+The platform's default example commission rate may be set to 4%, but the rate must be configurable by an authorized administrator and clearly disclosed to the parties before an order is confirmed.
+
+Calculate commission only for eligible completed transactions under the agreed terms.
+
+Commission Revenue = Eligible Completed Transaction Value × Applicable Commission Rate.
+
+Do not treat the full value of produce sold by a farmer as IngogaBridge revenue.
+
+Create payment records with:
+- Payment reference.
+- Related order or invoice.
+- Payer and payee.
+- Amount.
+- Currency.
+- Payment method.
+- Payment status.
+- Provider reference where available.
+- Timestamp.
+- Reconciliation status.
+
+Payment statuses:
+- Pending
+- Initiated
+- Confirmed
+- Failed
+- Refunded
+- Reconciled
+
+Initially, allow simulated payments in a clearly labelled DEMO MODE.
+
+Never mark a real payment as successful based solely on a browser redirect or user action. Real payment confirmation must be verified server-side through the provider's authenticated confirmation mechanism.
+
+If real payments are added later, use an appropriate supported payment provider and documented API. Keep secrets on the server. Do not invent payment credentials or pretend an integration is live.
+
+Do not hold, lend, transfer, or custody customer funds unless the necessary legal, contractual, and regulatory arrangements are in place.
+
+### 11. SUBSCRIPTIONS AND BUYER SERVICES
+
+Create a subscription management module for cooperatives and institutional customers.
+
+Support configurable plans:
+- Free Farmer Account.
+- Cooperative Basic.
+- Cooperative Professional.
+- Buyer or Business Account.
+- Custom Institutional Plan.
+
+Each plan should specify:
+- Price.
+- Billing frequency.
+- Included features.
+- Usage limits where relevant.
+- Subscription status.
+- Renewal date.
+- Invoice and payment status.
+
+Use RWF as the default display currency, with configurable currency support.
+
+A proposed RWF 100,000 monthly cooperative subscription may be used as a demonstration assumption, but it must be editable and clearly marked as unvalidated pricing.
+
+Allow authorized administrators to record buyer sourcing fees and implementation-service invoices.
+
+Do not create fake payment receipts or mark unpaid invoices as paid.
+
+### 12. ADMINISTRATOR DASHBOARD
+
+Create a secure administration dashboard with the following sections:
+
+- Overview.
+- Users and roles.
+- Organizations and cooperatives.
+- Waste collection.
+- BioSoil batches.
+- Quality-control approvals.
+- Product inventory.
+- Farm records.
+- Produce listings.
+- Orders and deliveries.
+- Payment reconciliation.
+- Commissions.
+- Subscriptions.
+- Invoices.
+- Expenses.
+- Reports.
+- Customer feedback.
+- Support requests.
+- Audit logs.
+- System configuration.
+
+Admin metrics should include:
+- Registered users by role.
+- Active farmers.
+- Active cooperatives.
+- Waste received and processed.
+- Approved BioSoil inventory.
+- Total completed produce transaction value.
+- Commission revenue earned.
+- Product sales revenue.
+- Subscription revenue.
+- Operating expenses.
+- Estimated operating profit.
+- Pending orders and disputes.
+- Outstanding payments.
+
+Each metric must have a defined calculation and reporting period.
+
+Use actual database data in production. Clearly label demo data in demonstration mode.
+
+Do not let ordinary administrators alter financial history or quality approvals without appropriate permissions and audit records.
+
+### 13. FINANCIAL REPORTING AND BUSINESS ANALYTICS
+
+Create a financial dashboard with daily, monthly, quarterly, and annual filters.
+
+Separate the following concepts:
+
+1. Gross marketplace transaction value.
+2. IngogaBridge commission revenue.
+3. BioSoil product sales.
+4. Subscription revenue.
+5. Buyer sourcing revenue.
+6. Implementation-service revenue.
+7. Cost of BioSoil production.
+8. Other direct service costs.
+9. Operating expenses.
+10. Cash received.
+11. Outstanding receivables.
+12. Payables.
+13. Estimated operating profit.
+14. Closing cash balance.
+
+Implement the following calculations carefully.
+
+Total Revenue = Recognized BioSoil Sales + Recognized Subscription Revenue + Recognized Commissions + Recognized Buyer Service Revenue + Recognized Implementation Revenue.
+
+Gross Profit = Revenue − Applicable Direct Costs.
+
+Operating Profit = Gross Profit − Operating Expenses.
+
+Closing Cash = Opening Cash + Actual Cash Inflows − Actual Cash Outflows.
+
+Do not confuse revenue with cash received.
+
+Do not subtract the full produce transaction value as an IngogaBridge expense if it is a third-party farmer sale handled as an agent. Use an appropriate accounting model for the actual contractual arrangement.
+
+Build a 12-month cash-flow forecast that lets an authorized user edit assumptions for:
+- Startup funding.
+- Monthly sales.
+- Customer acquisition.
+- Product volume and price.
+- Subscription count and price.
+- Completed marketplace transaction volume.
+- Commission rates.
+- Production and transport costs.
+- Staffing and other operating expenses.
+- Equipment purchases.
+- Customer payment delays.
+- Tax and financing assumptions where known.
+
+Distinguish forecast figures from actual financial records.
+
+Allow CSV export and printable reports.
+
+### 14. DEMO MODE FOR BUSINESS COMPETITIONS
+
+Create a dedicated demo environment that judges can explore without altering production records.
+
+Include a visible banner:
+"DEMO MODE — Illustrative data, not verified commercial results."
+
+Provide fictional demonstration accounts or a controlled role-switching demo interface. Never expose production credentials.
+
+Populate the demo environment with internally consistent sample records:
+- A sample waste collection.
+- A BioSoil batch with processing history and clearly labelled sample quality status.
+- A product package.
+- A farmer and crop record.
+- Farm expenses.
+- An expected harvest listing.
+- A buyer inquiry.
+- An order.
+- A simulated payment.
+- A completed demonstration transaction.
+- A calculated commission.
+- Monthly cash-flow data.
+
+All demonstration records must be labelled as simulated.
+
+Provide a reset-demo-data function accessible only to authorized users.
+
+Build a five-minute demonstration path:
+1. Record incoming organic waste.
+2. Show the BioSoil processing and traceability record.
+3. Open FarmGrow and record crop costs.
+4. Place a produce order in IngogaMarket.
+5. Show the commission and revenue dashboard.
+
+The system must not claim that simulated transactions represent real income or that untested compost is certified or safe.
+
+### 15. REPORTS AND DOCUMENTS
+
+Allow users to generate relevant reports and receipts, subject to permissions.
+
+Examples:
+- Waste collection receipt.
+- BioSoil batch report.
+- Product inventory report.
+- Farm expense report.
+- Crop profitability report.
+- Harvest report.
+- Produce listing report.
+- Order confirmation.
+- Delivery confirmation.
+- Commission statement.
+- Subscription invoice.
+- Monthly business performance report.
+- Cash-flow forecast.
+
+Each report should include a unique reference, creation date, reporting period, appropriate business details, and clearly labelled estimated or actual values.
+
+### 16. NOTIFICATIONS
+
+Build an in-app notification centre for:
+- New orders.
+- Order status changes.
+- Buyer inquiries.
+- Listing expiration.
+- Low inventory.
+- Quality-control decisions.
+- Collection updates.
+- Payment status changes.
+- Subscription renewal reminders.
+- Important system notices.
+
+Add email or SMS notifications only when valid provider integrations and credentials are configured.
+
+If notifications cannot be delivered, record the failure and show the user a clear status. Do not pretend that an email or SMS was sent when it was not.
+
+### 17. OFFLINE AND LOW-BANDWIDTH SUPPORT
+
+Optimize the application for users with limited internet access.
+
+Requirements:
+- Responsive, lightweight pages.
+- Compressed images.
+- Paginated tables.
+- Minimal unnecessary network requests.
+- Local draft storage for selected farm records.
+- Offline indicators.
+- Pending-sync indicators.
+- Retry mechanisms.
+- Duplicate-submission protection.
+- Conflict handling when records are changed on multiple devices.
+
+Only cache appropriate non-sensitive data.
+
+Do not cache authentication secrets or sensitive financial information in publicly accessible storage.
+
+Clearly identify which actions require a live connection, including order confirmation, inventory reservation, payment verification, and other shared transactions.
+
+### 18. LANGUAGE AND LOCALIZATION
+
+Provide English and Kinyarwanda interface options.
+
+Use a central translation system rather than hardcoding every visible string into components.
+
+Default currency: RWF.
+
+Use appropriate number, date, and unit formatting.
+
+Use metric units for farm areas, quantities, and waste weights, while allowing configurable units when needed.
+
+Store monetary amounts using suitable exact decimal or integer-minor-unit representations rather than unreliable floating-point arithmetic.
+
+### 19. SECURITY AND DATA PROTECTION
+
+Implement:
+- Secure authentication.
+- Role-based permissions.
+- Server-side authorization.
+- Database row-level security where supported.
+- Input validation.
+- Rate limiting for sensitive endpoints.
+- Secure password reset.
+- Safe file-upload validation.
+- Audit logging.
+- Session protection.
+- Protection against common web attacks.
+- Appropriate backup and recovery procedures.
+- Data export and account-deletion processes consistent with applicable obligations.
+
+Restrict access to personal data, farm records, private conversations, and financial records.
+
+Do not expose sensitive information in public URLs, logs, client-side secrets, or error messages.
+
+Use least-privilege access for administrators and staff.
+
+### 20. DATA MODEL AND INTEGRITY
+
+Implement normalized, relational database tables with appropriate primary keys, foreign keys, indexes, constraints, and timestamps.
+
+Include at minimum:
+- profiles
+- organizations
+- organization_members
+- farms
+- fields
+- crop_cycles
+- farm_activities
+- farm_expenses
+- harvest_records
+- waste_suppliers
+- waste_collections
+- production_batches
+- batch_inputs
+- batch_quality_checks
+- products
+- inventory_movements
+- product_listings
+- marketplace_listings
+- orders
+- order_items
+- order_status_history
+- conversations
+- messages
+- payments
+- commissions
+- subscription_plans
+- subscriptions
+- invoices
+- business_expenses
+- notifications
+- audit_logs
+
+Use suitable database constraints and transactional operations for stock, orders, and financial records.
+
+Preserve financial and quality-control history. Correct errors through authorized adjustment records instead of silently overwriting completed transactions.
+
+Do not create redundant or contradictory tables when an equivalent structure already exists. Keep the schema maintainable and document important relationships.
+
+### 21. USER EXPERIENCE AND ACCESSIBILITY
+
+Ensure:
+- Responsive desktop, tablet, and mobile layouts.
+- Clear navigation.
+- Search, sorting, and filters.
+- Form validation with helpful messages.
+- Loading, empty, success, and error states.
+- Confirmation for destructive actions.
+- Accessible color contrast.
+- Keyboard navigation.
+- Screen-reader-friendly labels.
+- Consistent buttons and status indicators.
+- Useful onboarding and help text.
+
+Use icons with text labels for important actions.
+
+Do not use charts that imply real performance when the underlying records are illustrative.
+
+### 22. TESTING REQUIREMENTS
+
+Write tests for the most important workflows.
+
+At minimum test:
+1. Registration and login.
+2. Role and organization permissions.
+3. Creating and updating a farm record.
+4. Recording farm expenses and calculating crop profitability.
+5. Recording waste collection.
+6. Creating a production batch.
+7. Blocking product sale when required quality approval is missing.
+8. Inventory changes after an order.
+9. Preventing overselling.
+10. Order status transitions.
+11. Commission calculation.
+12. Distinguishing transaction value from platform revenue.
+13. Preventing duplicate payment confirmations.
+14. Preventing unauthorized financial edits.
+15. Cash-flow calculations.
+16. Demo data isolation.
+17. Mobile navigation.
+18. Offline draft synchronization.
+
+Use consistent test fixtures and predictable sample data.
+
+### 23. ACCEPTANCE CRITERIA
+
+The application is not complete until:
+
+- The public website and dashboard render correctly.
+- Authentication works with the configured backend.
+- Users can access only authorized functions and records.
+- The three business divisions share relevant data.
+- BioSoil batch records can be created and traced.
+- Quality approval gates work.
+- Product inventory updates correctly.
+- Farmers can create crop records and calculate expenses.
+- Produce listings and orders persist in the database.
+- Order status changes are validated.
+- Commissions are calculated correctly.
+- Payment statuses cannot be falsified through the frontend.
+- Financial dashboards distinguish actual results from projections.
+- CSV and printable reports work.
+- The demo workflow can be completed from start to finish.
+- The application is responsive and usable on a phone.
+- Setup, configuration, database, testing, and deployment instructions are supplied.
+
+### 24. DEVELOPMENT EXECUTION RULES
+
+First inspect the capabilities of the app builder and choose a compatible architecture.
+
+Then:
+1. Establish the application structure and design system.
+2. Create the database schema and security policies.
+3. Implement authentication and role permissions.
+4. Build the public website.
+5. Build BioSoil.
+6. Build FarmGrow.
+7. Build IngogaMarket.
+8. Implement payments, commissions, subscriptions, and financial reporting.
+9. Add demo mode, reports, notifications, and offline support.
+10. Run tests, correct errors, and document deployment.
+
+Keep the project coherent. Do not create disconnected mock applications for different modules.
+
+Do not replace a failed backend integration with a fake successful interface.
+
+If a feature requires unavailable external credentials, implement a clear setup screen, a documented integration boundary, and a labelled demonstration alternative.
+
+If a requirement cannot be implemented within the available environment, disclose the limitation and implement the safest functional alternative.
+
+At the end, provide:
+- A summary of implemented features.
+- The technology stack.
+- Database schema and setup instructions.
+- Environment variables required.
+- Demo access instructions.
+- Test results.
+- Known limitations.
+- Deployment instructions.
+- A checklist of any external services the owner must configure.
+
+**FINAL OBJECTIVE:** Deliver a real, secure, database-backed IngogaBridge MVP that demonstrates the complete journey from organic waste collection to BioSoil production, farm management, agricultural marketplace transactions, and transparent business revenue reporting. Prioritize correctness, working end-to-end workflows, and a credible competition demonstration over superficial visual complexity.
